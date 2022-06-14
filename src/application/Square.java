@@ -30,20 +30,16 @@ public class Square {
 	private Rectangle square;
 	// The piece displayed in the GUI.
 	private Text piece;
-	// The rank of the square from 0 to 7 (chess-notation rank minus one).
-	private int rank;
-	// The file of the square from 0 (A) to 7 (H).
-	private int file;
+	// The location of the square on the chess board.
+	private Coordinate location;
 	// Whether the square is currently selected.
 	private boolean selected = false;
 	
 	// Initializes a square with a piece.
-	public Square(int rank, int file, char pieceLetter) {
+	public Square(Coordinate location, char pieceLetter) {
 		square = new Rectangle(PIXEL_WIDTH, PIXEL_WIDTH);
-		this.rank = rank;
-		this.file = file;
-		boolean darkSquare = rank % 2 == file % 2;
-        if (darkSquare)
+		this.location = location;
+        if (location.darkSquare())
         	square.setFill(DARK_SQUARE);
         else
         	square.setFill(LIGHT_SQUARE);
@@ -54,13 +50,6 @@ public class Square {
         squareWithPiece = new StackPane();
         squareWithPiece.getChildren().addAll(square, piece);
         setEventHandlers();
-	}
-	
-	// Updates the square with the new piece and deselects it.
-	// This should be called every time the position changes.
-	public void update(char pieceLetter) {
-		deselect();
-		drawPiece(pieceLetter);
 	}
 	
 	// Selects the square.
@@ -79,7 +68,7 @@ public class Square {
 	private void unhighlight() {square.setOpacity(1);}
 	
 	// Updates the GUI representation of the piece.
-	private void drawPiece(char pieceLetter) {
+	public void drawPiece(char pieceLetter) {
 		piece.setFont(PIECE_FONT);
 		String unicodePieceType = Piece.unicodeType(pieceLetter);
 		piece.setText(unicodePieceType);
@@ -94,7 +83,7 @@ public class Square {
         squareWithPiece.setOnMouseClicked(new EventHandler<MouseEvent>() {
         	@Override
             public void handle(MouseEvent t) {
-        		Arbiter.processClick(rank, file);
+        		Arbiter.processClick(location);
             }
         });
         squareWithPiece.setOnMouseEntered(new EventHandler<MouseEvent>() {

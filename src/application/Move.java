@@ -1,5 +1,7 @@
 package application;
 
+import java.util.Collection;
+
 // A single move of a chess piece.
 // Nate Hunter - 04/03/2022
 public class Move {
@@ -12,56 +14,111 @@ public class Move {
 		TWO_SQUARE_PAWN
 	}
 	
-	// Move directions specify the change in rank number and file number, respectively,
-	// for a particular move. For example, F3 -> D4 has a move direction of [1, -2].
-	public static final int[][] ROYALTY_MOVE_DIRECTIONS = {{0, -1}, {0, 1}, {-1, 0}, {1, 0},
-															{-1, -1}, {-1, 1}, {1, -1}, {1, 1}};
-	public static final int[][] ROOK_MOVE_DIRECTIONS = {{0, -1}, {0, 1}, {-1, 0}, {1, 0}};
-	public static final int[][] BISHOP_MOVE_DIRECTIONS = {{-1, -1}, {-1, 1}, {1, -1}, {1, 1}};
-	public static final int[][] KNIGHT_MOVE_DIRECTIONS = {{-2, -1}, {-2, 1}, {-1, -2}, {-1, 2},
-															{1, -2}, {1, 2}, {2, -1}, {2, 1}};
-	
-	// The coordinates from which and to which the piece is moving (from 0 to 7).
-	public int sourceRank, sourceFile, targetRank, targetFile;
+	// The coordinates from which and to which the piece is moving.
+	public Coordinate source, target;
 	// The move type (for special cases).
 	public Type type;
+	// The notation of the move.
+	public String notation;
 	
 	// Creates a move.
-	public Move(int sourceRank, int sourceFile, int targetRank, int targetFile) {
-		this(sourceRank, sourceFile, targetRank, targetFile, Type.NORMAL);
-	}
-	public Move(int sourceRank, int sourceFile, int targetRank, int targetFile, Type type) {
-		this.sourceRank = sourceRank;
-		this.sourceFile = sourceFile;
-		this.targetRank = targetRank;
-		this.targetFile = targetFile;
+	public Move(Coordinate source, char sourcePiece, Coordinate target, char targetPiece, Type type) {
+		this.source = source.copy();
+		this.target = target.copy();
 		this.type = type;
+		notate(sourcePiece, targetPiece);
 	}
 	
 	// Determines whether a move matches the coordinates supplied.
-	public boolean matches(int sourceRank, int sourceFile, int targetRank, int targetFile) {
-		return matchesSource(sourceRank, sourceFile) && matchesTarget(targetRank, targetFile);
+	public boolean matches(Coordinate source, Coordinate target) {
+		return this.source.equals(source) && this.target.equals(target);
 	}
-	// Determines whether a move matches the source square supplied.
-	public boolean matchesSource(int sourceRank, int sourceFile) {
-		return (this.sourceRank == sourceRank && this.sourceFile == sourceFile);
-	}
-	// Determines whether a move matches the target square supplied.
-	public boolean matchesTarget(int targetRank, int targetFile) {
-		return (this.targetRank == targetRank && this.targetFile == targetFile);
+	// Determines whether a move matches the coordinates of the move supplied.
+	public boolean matches(Move move) {
+		return move.source.equals(source) && move.target.equals(target);
 	}
 	
-	// Determines whether a coordinate is in the bounds of the chess board.
-	public static boolean inbounds(int rank, int file) {
-		return (0 <= rank && rank < 8) && (0 <= file && file < 8);
+	// Notates a move.
+	// Information on check, checkmate, and whether different moves have the same notation
+	// is typically unavailable when this method is called; it must be added in later.
+	private void notate(char sourcePiece, char targetPiece) {
+		notation = "";
+		
+		// Castling is a special case for notation.
+		if (type == Type.CASTLE) {
+			boolean kingside = (target.file > source.file);
+			notation += kingside ? "O-O" : "O-O-O";
+		}
+		else {
+			// Notate the source piece if applicable.
+			boolean pawnMove = (Piece.type(sourcePiece) == Piece.Type.PAWN);
+			if (!pawnMove)
+				notation += Character.toUpperCase(sourcePiece);
+					
+			// Notate the capture if applicable.
+			boolean capture = (!Piece.isEmpty(targetPiece) || type == Type.EN_PASSANT);
+			if (capture) {
+				if (pawnMove)
+					notation += notateFile(source.file);
+				notation += 'x';
+			}
+			
+			// Notate the target square.
+			notation += notateFile(target.file);
+			notation += notateRank(target.rank);
+			
+			// Notate the promotion if applicable.
+			if (type == Type.PROMOTION)
+				// All pawns promote to queen for simplicity.
+				notation += "=Q";
+		}
 	}
 	
-	// Gets the rank delta of a move direction. (e.g. a knight moving [1, -2] has a rank delta of 1)
-	public static int rankDelta(int[] moveDirection) {
-		return moveDirection[0];
+	// Notates a rank.
+	// Program rank 0 = notation rank 1; program rank 7 = notation rank 8.
+	private static char notateRank(int rank) {
+		return (char)('1' + rank);
 	}
-	// Gets the file delta of a move direction. (e.g. a knight moving [1, -2] has a file delta of -2)
-	public static int fileDelta(int[] moveDirection) {
-		return moveDirection[1];
+	// Notates a file.
+	// Program file 0 = notation file 'a'; program file 7 = notation file 'h'.
+	private static char notateFile(int file) {
+		return (char)('a' + file);
+	}
+	
+	// Updates the notation if needed to distinguish the move from others with the same notation.
+	// This is done separately from regular notation because other moves and more computation are needed.
+	public void distinguishNotation(Collection<Move> allMoves) {
+		// Determine whether other moves exist with the same notation (and source rank or file).
+		boolean notationUnique = true;
+		boolean sourceFileUniqueForNotation = true;
+		boolean sourceRankUniqueForNotation = true;
+		for (Move move : allMoves)
+			if (notation.equals(move.notation)) {
+				boolean sameMoveAsSelf = matches(move);
+				if (!sameMoveAsSelf) {
+					notationUnique = false;
+					if (source.file == move.source.file)
+						sourceFileUniqueForNotation = false;
+					if (source.rank == move.source.rank)
+						sourceRankUniqueForNotation = false;
+				}
+			}
+		
+		// Update the notation as needed.
+		if (!notationUnique) {
+			String sourceNotation = "";
+			if (sourceFileUniqueForNotation)
+				sourceNotation += notateFile(source.file);
+			else {
+				if (sourceRankUniqueForNotation)
+					sourceNotation += notateRank(source.rank);
+				else {
+					sourceNotation += notateFile(source.file);
+					sourceNotation += notateRank(source.rank);
+				}
+			}
+			int sourceNotationIndex = 1;
+			notation = notation.substring(0, sourceNotationIndex) + sourceNotation + notation.substring(sourceNotationIndex);
+		}
 	}
 }

@@ -17,8 +17,9 @@ public class Board {
 		GridPane grid = new GridPane();
 	    for (int rank = 0; rank < 8; rank++)
 	    	for (int file = 0; file < 8; file++) {
-	    		char piece = Position.current.getPiece(rank, file);
-	    		Square square = new Square(rank, file, piece);
+	    		Coordinate location = new Coordinate(rank, file);
+	    		char piece = Position.current.getPiece(location);
+	    		Square square = new Square(location, piece);
 	    		squares[rank][file] = square;
 	    		// Ranks are displayed from bottom to top when playing as white.
 	    		int row = 7 - rank;
@@ -40,13 +41,14 @@ public class Board {
 	public static void update() {
 	    for (int rank = 0; rank < 8; rank++)
 	    	for (int file = 0; file < 8; file++) {
-	    		char piece = Position.current.getPiece(rank, file);
-	    		squares[rank][file].update(piece);
+	    		Coordinate location = new Coordinate(rank, file);
+	    		char piece = Position.current.getPiece(location);
+	    		squares[rank][file].drawPiece(piece);
 	    	}
 	}
 	
 	// Gets the square at the given coordinates.
-	public static Square getSquare(int rank, int file) {
-		return squares[rank][file];
+	public static Square getSquare(Coordinate location) {
+		return squares[location.rank][location.file];
 	}
 }

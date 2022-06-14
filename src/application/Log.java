@@ -15,26 +15,29 @@ public class Log {
 	// The history of past moves.
 	private static String gameHistory = "";
 	// The potential moves to display.
-	private static String gameFutures = "";
+	private static String gameFutures = "Future moves coming soon.";
 	
 	// Initializes the log in the GUI.
 	public static ScrollPane initialize() {
 	    logText = new Label();
 	    logText.setFont(Font.font("Calibri", 13));
 	    logText.setTextFill(Color.WHITE);
+	    logText.setWrapText(true);
+	    logText.setMaxWidth(200);
 	    
 	    ScrollPane log = new ScrollPane();
 	    log.setContent(logText);
 	    log.setStyle("-fx-background: rgb(64,64,64);");
 	    log.setPadding(new Insets(5, 5, 5, 5));
 	    log.setPrefViewportWidth(200);
+	    log.setHbarPolicy(ScrollBarPolicy.NEVER);
 	    log.setVbarPolicy(ScrollBarPolicy.AS_NEEDED);
 	    return log;
 	}
 	
-	// Adds a move to the game history.
-	public static void appendToHistory(String move) {
-		gameHistory += move;
+	// Appends text (typically a move) to the game history.
+	public static void appendToHistory(String text) {
+		gameHistory += text + ' ';
 		update();
 	}
 	

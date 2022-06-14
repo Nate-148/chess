@@ -141,7 +141,7 @@ public class Piece {
 		switch (pawnColor) {
 		case WHITE: return 'Q';
 		case BLACK: return 'q';
-		default: return ' ';
+		default: return EMPTY;
 		}
 	}
 }
