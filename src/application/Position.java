@@ -22,33 +22,30 @@ public class Position {
 	
 	// An 8x8 grid of the pieces on the board.
 	private char[][] pieces = new char[8][8];
-	// The pieces attacking/defending each square of the chess board. For example,
-	// if attackers[3][1] = {'P', 'r'}, then b4 is attacked/defended by a white pawn and a black rook.
-	// The term "attackers" was chosen since it is typically more accurate,
-	// but these lists also include pieces defending other pieces of the same color.
+	
+	// The white pieces attacking each square of the chess board. For example, if
+	// attackers[3][1] = {'P', 'R'}, then white is attacking b4 with a pawn and a rook.
 	// Arrays of typed lists cannot be created in Java, so this workaround is used.
 	@SuppressWarnings("unchecked")
-	private List<Character>[][] attackers = (List<Character>[][]) new List[8][8];
+	private List<Character>[][] whiteAttackers = (List<Character>[][]) new List[8][8];
+	// The black pieces attacking each square of the chess board.
+	@SuppressWarnings("unchecked")
+	private List<Character>[][] blackAttackers = (List<Character>[][]) new List[8][8];
 
 	// Tracking king locations is useful for quickly computing checks and invalid positions.
 	// The location of the white king.
 	private Coordinate whiteKingLocation;
-	// Tracking whether the kings and rooks have moved is necessary for castling rules.
-	// Whether the white king has moved.
-	private boolean whiteKingHasMoved;
-	// Whether the white A-file rook has moved.
-	private boolean whiteARookHasMoved;
-	// Whether the white H-file rook has moved.
-	private boolean whiteHRookHasMoved;
-	
 	// The location of the black king.
 	private Coordinate blackKingLocation;
-	// Whether the black king has moved.
-	private boolean blackKingHasMoved;
-	// Whether the black A-file rook has moved.
-	private boolean blackARookHasMoved;
-	// Whether the black H-file rook has moved.
-	private boolean blackHRookHasMoved;
+
+	// Whether white can castle kingside.
+	private boolean whiteCanCastleKingside;
+	// Whether white can castle queenside.
+	private boolean whiteCanCastleQueenside;
+	// Whether black can castle kingside.
+	private boolean blackCanCastleKingside;
+	// Whether black can castle queenside.
+	private boolean blackCanCastleQueenside;
 	
 	// Whether the previous move was castling.
 	private boolean justCastled;
@@ -74,13 +71,11 @@ public class Position {
 		startPosition.moveNumber = 1;
 		startPosition.whiteToMove = true;
 		startPosition.whiteKingLocation = new Coordinate(0, 4);
-		startPosition.whiteKingHasMoved = false;
-		startPosition.whiteARookHasMoved = false;
-		startPosition.whiteHRookHasMoved = false;
 		startPosition.blackKingLocation = new Coordinate(7, 4);
-		startPosition.blackKingHasMoved = false;
-		startPosition.blackARookHasMoved = false;
-		startPosition.blackHRookHasMoved = false;
+		startPosition.whiteCanCastleKingside = true;
+		startPosition.whiteCanCastleQueenside = true;
+		startPosition.blackCanCastleKingside = true;
+		startPosition.blackCanCastleQueenside = true;
 		startPosition.justCastled = false;
 		startPosition.enPassantFile = Coordinate.INVALID;
 		startPosition.clearAllMoves();
@@ -98,13 +93,11 @@ public class Position {
 		position.moveNumber = moveNumber;
 		position.whiteToMove = whiteToMove;
 		position.whiteKingLocation = whiteKingLocation;
-		position.whiteKingHasMoved = whiteKingHasMoved;
-		position.whiteARookHasMoved = whiteARookHasMoved;
-		position.whiteHRookHasMoved = whiteHRookHasMoved;
 		position.blackKingLocation = blackKingLocation;
-		position.blackKingHasMoved = blackKingHasMoved;
-		position.blackARookHasMoved = blackARookHasMoved;
-		position.blackHRookHasMoved = blackHRookHasMoved;
+		position.whiteCanCastleKingside = whiteCanCastleKingside;
+		position.whiteCanCastleQueenside = whiteCanCastleQueenside;
+		position.blackCanCastleKingside = blackCanCastleKingside;
+		position.blackCanCastleQueenside = blackCanCastleQueenside;
 		position.justCastled = justCastled;
 		position.enPassantFile = enPassantFile;
 		position.clearAllMoves();
@@ -115,13 +108,10 @@ public class Position {
 	private void clearAllMoves() {
 		moves = new ArrayList<Move>();
 		for (int rank = 0; rank < 8; rank++)
-			for (int file = 0; file < 8; file++)
-				attackers[rank][file] = new ArrayList<Character>();
-	}
-	
-	// Gets the pieces attacking the specified square.
-	public List<Character> getAttackers(Coordinate coordinate) {
-		return attackers[coordinate.rank][coordinate.file];
+			for (int file = 0; file < 8; file++) {
+				whiteAttackers[rank][file] = new ArrayList<Character>();
+				blackAttackers[rank][file] = new ArrayList<Character>();
+			}
 	}
 	
 	// Gets the piece in the specified square.
@@ -132,6 +122,16 @@ public class Position {
 	// Sets the specified square to the specified piece.
 	public void setPiece(Coordinate coordinate, char piece) {
 		pieces[coordinate.rank][coordinate.file] = piece;
+	}
+	
+	// Gets the pieces attacking the specified square for the specified player.
+	public List<Character> getAttackers(Coordinate coordinate, boolean activePlayer) {
+		// Retrieve the white pieces for the active player on white's move
+		// and for the opposing player on black's move.
+		boolean getWhiteAttackers = (activePlayer == whiteToMove);
+		if (getWhiteAttackers)
+			return whiteAttackers[coordinate.rank][coordinate.file];
+		return blackAttackers[coordinate.rank][coordinate.file];
 	}
 	
 	// Plays the move specified and updates the position.
@@ -182,26 +182,29 @@ public class Position {
 			enPassantFile = move.target.file;
 		else enPassantFile = Coordinate.INVALID;
 		justCastled = (move.type == Move.Type.CASTLE);
+		// Disable castling as appropriate.
 		if (Piece.type(piece) == Piece.Type.KING) {
 			if (whiteToMove) {
-				whiteKingHasMoved = true;
 				whiteKingLocation = move.target;
+				whiteCanCastleKingside = false;
+				whiteCanCastleQueenside = false;
 			}
 			else {
-				blackKingHasMoved = true;
 				blackKingLocation = move.target;
+				blackCanCastleKingside = false;
+				blackCanCastleQueenside = false;
 			}
 		}
 		else if (Piece.type(piece) == Piece.Type.ROOK) {
 			if (move.source.file == 0) {
 				if (whiteToMove)
-					whiteARookHasMoved = true;
-				else blackARookHasMoved = true;
+					whiteCanCastleQueenside = false;
+				else blackCanCastleQueenside = true;
 			}
 			else if (move.source.file == 7) {
 				if (whiteToMove)
-					whiteHRookHasMoved = true;
-				else blackHRookHasMoved = true;
+					whiteCanCastleKingside = false;
+				else blackCanCastleKingside = false;
 			}
 		}
 		whiteToMove = !whiteToMove;
@@ -220,7 +223,7 @@ public class Position {
 	
 	// Computes the following:
 	//		a) moves: A list of all possible moves for the position (ignoring checks).
-	// 		b) attackers: Lists of all pieces that attack/defend each square.
+	// 		b) attackers: Lists of all pieces that attack each square.
 	// This method serves as the computational core of the entire program.
 	//
 	// Attackers are computed alongside moves since both require similar calculations.
@@ -287,7 +290,7 @@ public class Position {
 		}
 	}
 	
-	// Computes long-range moves and attackers. Used for queens, rooks, and knights.
+	// Computes long-range moves and attackers. Used for queens, rooks, and bishops.
 	private void computeLongRangeMoves(Coordinate[] moveDirections, Coordinate source, char piece) {
 		boolean sourceActive = Piece.isActive(piece, whiteToMove);
 		// Iterate through target squares outward in each direction until the direction is blocked.
@@ -376,20 +379,17 @@ public class Position {
 	
 	// Computes castling moves.
 	private void computeCastlingMoves() {
+		final boolean KINGSIDE = true;
 		if (whiteToMove) {
-			if (!whiteKingHasMoved) {
-				if (!whiteARookHasMoved)
-					addCastlingMove(false);
-				if (!whiteHRookHasMoved)
-					addCastlingMove(true);
-			}
+			if (whiteCanCastleKingside)
+				addCastlingMove(KINGSIDE);
+			if (whiteCanCastleQueenside)
+				addCastlingMove(!KINGSIDE);
 		} else {
-			if (!blackKingHasMoved) {
-				if (!blackARookHasMoved)
-					addCastlingMove(false);
-				if (!blackHRookHasMoved)
-					addCastlingMove(true);
-			}
+			if (blackCanCastleKingside)
+				addCastlingMove(KINGSIDE);
+			if (blackCanCastleQueenside)
+				addCastlingMove(!KINGSIDE);
 		}
 	}
 	// Adds the specified castling move to the list of possible moves if the path is clear.
@@ -423,27 +423,23 @@ public class Position {
 	
 	// Adds an attacker for the specified target square.
 	private void addAttacker(Coordinate target, char attackingPiece) {
-		getAttackers(target).add(attackingPiece);
+		boolean activeAttacker = Piece.isActive(attackingPiece, whiteToMove);
+		getAttackers(target, activeAttacker).add(attackingPiece);
 	}
 	
-	// Determines whether the specified player is attacking/defending the specified square.
+	// Determines whether the specified player is attacking the specified square.
 	// This method assumes that attackers have already been computed.
 	private boolean squareAttacked(Coordinate square, boolean activePlayer) {
-		List<Character> attackers = getAttackers(square);
-		for (char attacker : attackers)
-			if (activePlayer && Piece.isActive(attacker, whiteToMove))
-				return true;
-			else if (!activePlayer && Piece.isOpposing(attacker, whiteToMove))
-				return true;
-		return false;
+		List<Character> attackers = getAttackers(square, activePlayer);
+		return !attackers.isEmpty();
 	}
 	
 	// Determines whether the active player is in check.
 	// This method assumes that attackers have already been computed.
 	public boolean inCheck() {
 		Coordinate activeKingLocation = whiteToMove ? whiteKingLocation : blackKingLocation;
-		boolean opposingPlayer = false;
-		return squareAttacked(activeKingLocation, opposingPlayer);
+		final boolean OPPOSING_PLAYER = false;
+		return squareAttacked(activeKingLocation, OPPOSING_PLAYER);
 	}
 	
 	// Determines whether the position is valid.
@@ -454,19 +450,19 @@ public class Position {
 	public boolean valid() {
 		// The enemy king should not be capturable.
 		Coordinate opposingKingLocation = whiteToMove ? blackKingLocation : whiteKingLocation;
-		boolean activePlayer = true;
-		if (squareAttacked(opposingKingLocation, activePlayer))
+		final boolean ACTIVE_PLAYER = true;
+		if (squareAttacked(opposingKingLocation, ACTIVE_PLAYER))
 			return false;
 		
 		// The enemy king should not have castled out of or through check.
 		if (justCastled) {
 			int opposingKingInitialFile = 4;
 			Coordinate opposingKingInitialLocation = new Coordinate(opposingKingLocation.rank, opposingKingInitialFile);
-			if (squareAttacked(opposingKingInitialLocation, activePlayer))
+			if (squareAttacked(opposingKingInitialLocation, ACTIVE_PLAYER))
 				return false;
 			int opposingKingPassThroughFile = (opposingKingInitialFile + opposingKingLocation.file) / 2;
 			Coordinate opposingKingPassThroughLocation = new Coordinate(opposingKingLocation.rank, opposingKingPassThroughFile);
-			if (squareAttacked(opposingKingPassThroughLocation, activePlayer))
+			if (squareAttacked(opposingKingPassThroughLocation, ACTIVE_PLAYER))
 				return false;
 		}
 		return true;

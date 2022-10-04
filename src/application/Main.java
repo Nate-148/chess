@@ -34,6 +34,9 @@ public class Main extends Application {
 		window.setTitle("Chess");
 		window.setScene(new Scene(windowContents));
 		window.show();
+		
+		// If white is a bot, the first move must be triggered.
+		Arbiter.playBotMoveIfAppropriate();
 	}
 	
 	public static void main(String[] args) {

@@ -19,8 +19,10 @@ public class PositionTree {
 	public Position rootPosition;
 	// The status of the root position of the tree.
 	public Status status;
-	// The future positions branching from the tree.
+	// The legal future positions branching from the tree.
 	public Map<Move, PositionTree> futureBranches;
+	// The number of layers of future branches proceeding from the root.
+	public int depth;
 	
 	// "Grows" a position tree from the specified position and completely fills out its
 	// future position branches to the depth specified.
@@ -28,6 +30,7 @@ public class PositionTree {
 		// Initialize the root of the tree.
 		PositionTree tree = new PositionTree();
 		tree.rootPosition = position;
+		tree.depth = depth;
 		
 		// Compute possible moves and validate the position.
 		position.computeAllMoves();
@@ -49,9 +52,9 @@ public class PositionTree {
 					tree.futureBranches.put(move, futureBranch);
 					// Update the move notation as needed.
 					if (futureBranch.status == Status.CHECK)
-						move.notation += '+';
+						move.notateCheck();
 					else if (futureBranch.status == Status.CHECKMATE)
-						move.notation += '#';
+						move.notateCheckmate();
 				}
 			}
 			
@@ -66,7 +69,6 @@ public class PositionTree {
 			else tree.status = Status.NORMAL;
 		}
 		else {
-			// TODO Use moves for evaluation in non-branching case.
 			// Determine the status of the position.
 			// Checkmate and stalemate cannot be evaluated at this base level, but check can.
 			if (position.inCheck())

@@ -1,7 +1,7 @@
 package application;
 
 // A coordinate vector corresponding to a location on the chess board.
-// The coordinate vector can represent an absolute position (e.g. f7)
+// The coordinate vector can represent an absolute location (e.g. f7)
 // or a relative move direction (e.g. two squares forward).
 // Nate Hunter - 06/08/2022
 public class Coordinate {
@@ -65,18 +65,18 @@ public class Coordinate {
 		return (0 <= rank && rank < 8) && (0 <= file && file < 8);
 	}
 	
-	// Determines whether the given absolute coordinate corresponds to a dark square (or a light square).
+	// Determines whether an absolute coordinate corresponds to a dark square (or a light square).
 	public boolean darkSquare() {
 		return rank % 2 == file % 2;
 	}
 	
-	// Adds a move direction to the given coordinate.
+	// Adds a move direction to the coordinate.
 	// This can be used to compute a target square from a source square.
 	public Coordinate add(Coordinate moveDirection) {
 		return new Coordinate(rank + moveDirection.rank, file + moveDirection.file);
 	}
 	
-	// Scales the given relative move direction.
+	// Scales a relative move direction.
 	public Coordinate scale(int multiplier) {
 		return new Coordinate(rank * multiplier, file * multiplier);
 	}

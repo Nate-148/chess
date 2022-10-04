@@ -85,6 +85,17 @@ public class Move {
 		return (char)('a' + file);
 	}
 	
+	// Notates that the move comes with check.
+	public void notateCheck() {
+		if (!notation.endsWith("+"))
+			notation += '+';
+	}
+	// Notates that the move comes with checkmate.
+	public void notateCheckmate() {
+		if (!notation.endsWith("#"))
+			notation += '#';
+	}
+	
 	// Updates the notation if needed to distinguish the move from others with the same notation.
 	// This is done separately from regular notation because other moves and more computation are needed.
 	public void distinguishNotation(Collection<Move> allMoves) {
@@ -120,5 +131,11 @@ public class Move {
 			int sourceNotationIndex = 1;
 			notation = notation.substring(0, sourceNotationIndex) + sourceNotation + notation.substring(sourceNotationIndex);
 		}
+	}
+	
+	// Reveals the move notation for clearer logging.
+	@Override
+	public String toString() {
+		return notation;
 	}
 }
